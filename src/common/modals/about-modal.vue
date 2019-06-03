@@ -1,5 +1,5 @@
 <template>
-  <modal :visible="visible" :toggleVisible="toggleVisible">
+  <modal-base :name="modalName">
     <div class="modal-body about-modal">
       <h2>Yuna v{{ version }}</h2>
 
@@ -14,25 +14,24 @@
         <div>Source on GitHub</div>
       </a>
     </div>
-  </modal>
+  </modal-base>
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from 'vue-property-decorator'
+import { Component, Vue } from 'vue-property-decorator'
 import { chromeVersion, electronVersion } from 'electron-util'
 
-import { Required } from '@/decorators'
-import Modal from './modal.vue'
+import ModalBase from '@/common/modals/base.vue'
+import { ModalName } from '@/state/app'
 import { version } from '../../../package.json'
 
-@Component({ components: { Modal } })
+@Component({ components: { ModalBase } })
 export default class AboutModal extends Vue {
-  @Prop(Boolean) public visible!: boolean | null
-  @Required(Function) public toggleVisible!: () => any
+  public readonly modalName: ModalName = 'about'
 
-  public version = version
-  public electronVersion = electronVersion
-  public chromeVersion = chromeVersion
+  public readonly version = version
+  public readonly electronVersion = electronVersion
+  public readonly chromeVersion = chromeVersion
 }
 </script>
 

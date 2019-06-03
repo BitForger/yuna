@@ -1,5 +1,5 @@
 <template>
-  <modal :visible="visible" :toggleVisible="toggleVisible">
+  <modal-base :name="modalName">
     <ApolloMutation
       :mutation="EDIT_LIST_ENTRY"
       :variables="anime && anime.mediaListEntry"
@@ -85,14 +85,14 @@
         </div>
       </template>
     </ApolloMutation>
-  </modal>
+  </modal-base>
 </template>
 
 <script lang="ts">
 import { ApolloError } from 'apollo-client'
-import { Component, Prop, Vue } from 'vue-property-decorator'
+import { Component, Vue } from 'vue-property-decorator'
 import { ApolloCache } from 'apollo-cache'
-import { change } from 'rambdax'
+import change from 'lodash.set'
 import { oc } from 'ts-optchain'
 import { mdiCloseCircle } from '@mdi/js'
 
@@ -106,28 +106,26 @@ import {
   MediaListStatus,
 } from '@/graphql/types'
 
-import { Required } from '@/decorators'
 import {
   EditModalAnime,
   getEditingAnime,
+  ModalName,
   setEditingAnimeValue,
+  toggleModal,
 } from '@/state/app'
 import { capitalize, enumToArray, propEq } from '@/utils'
 
 import CButton from '@/common/components/button.vue'
 import NumberInput from '@/common/components/form/number-input.vue'
 import Dropdown, { DropdownItem } from '@/common/components/form/dropdown.vue'
-import Modal from './modal.vue'
+import ModalBase from '@/common/modals/base.vue'
 import AnimeBanner from '@/common/components/anime-banner.vue'
 import Icon from '@/common/components/icon.vue'
 
 @Component({
-  components: { Modal, AnimeBanner, Icon, NumberInput, Dropdown, CButton },
+  components: { ModalBase, AnimeBanner, Icon, NumberInput, Dropdown, CButton },
 })
 export default class EditModal extends Vue {
-  @Prop(Boolean) public visible!: boolean | null
-  @Required(Function) public toggleVisible!: () => any
-
   public statusItems: DropdownItem[] = enumToArray(MediaListStatus).map(
     status => ({
       label: capitalize((status as unknown) as string),
@@ -135,8 +133,9 @@ export default class EditModal extends Vue {
     }),
   )
 
-  public EDIT_LIST_ENTRY = EDIT_LIST_ENTRY
-  public deleteSvg = mdiCloseCircle
+  public readonly modalName: ModalName = 'edit'
+  public readonly EDIT_LIST_ENTRY = EDIT_LIST_ENTRY
+  public readonly deleteSvg = mdiCloseCircle
 
   public get anime() {
     return getEditingAnime(this.$store)
@@ -201,6 +200,10 @@ export default class EditModal extends Vue {
     return errors && errors.length > 0 ? errors[0] : null
   }
 
+  public toggleVisible() {
+    toggleModal(this.$store, this.modalName)
+  }
+
   public async deleteEntry() {
     if (!this.anime || !this.anime.mediaListEntry) return
 
@@ -212,7 +215,7 @@ export default class EditModal extends Vue {
 </script>
 
 <style scoped lang="scss">
-@import '../../colors';
+@import '../../../colors';
 
 $gutter: 25px;
 
@@ -285,7 +288,7 @@ $gutter: 25px;
 
   & > .buttons {
     width: 100%;
-    padding: 0px $gutter;
+    padding: 0 $gutter;
     margin-bottom: 20px;
     display: flex;
     justify-content: space-between;

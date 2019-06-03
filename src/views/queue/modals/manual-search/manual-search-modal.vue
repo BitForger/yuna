@@ -1,5 +1,5 @@
 <template>
-  <modal :visible="visible" :toggleVisible="closeModal">
+  <modal-base name="manualSearch">
     <animated-height class="manual-search-modal">
       <search-step
         v-if="selectedId == null"
@@ -15,27 +15,29 @@
         :toggleVisible="closeModal"
       />
     </animated-height>
-  </modal>
+  </modal-base>
 </template>
 
 <script lang="ts">
-import { Component, Prop, Vue } from 'vue-property-decorator'
+import { Component, Vue } from 'vue-property-decorator'
 
 import AnimatedHeight from '@/common/components/animated-height.vue'
-import Modal from '../modal.vue'
+import ModalBase from '@/common/modals/base.vue'
 import CrunchyrollEditor from './crunchyroll-editor.vue'
 import SearchStep from './search-step.vue'
 
-import { Required } from '@/decorators'
-import { getManualSearchOptions, getSelectedEpisodes } from '@/state/app'
+import {
+  getManualSearchOptions,
+  getSelectedEpisodes,
+  ModalName,
+  toggleModal,
+} from '@/state/app'
 
 @Component({
-  components: { CrunchyrollEditor, SearchStep, AnimatedHeight, Modal },
+  components: { CrunchyrollEditor, SearchStep, AnimatedHeight, ModalBase },
 })
 export default class ManualSearchModal extends Vue {
-  @Prop(Boolean) public visible!: boolean | null
-  @Required(Function) public toggleVisible!: () => any
-
+  public readonly modalName: ModalName = 'manualSearch'
   public selectedId: number | null = null
 
   public get searchOptions() {
@@ -51,15 +53,15 @@ export default class ManualSearchModal extends Vue {
   }
 
   public closeModal() {
-    this.toggleVisible()
+    toggleModal(this.$store, this.modalName)
 
-    setTimeout(() => this.setSelectedId(null), 250)
+    setTimeout(() => this.setSelectedId(null), 500)
   }
 }
 </script>
 
 <style scoped lang="scss">
-@import '../../../colors';
+@import '../../../../colors';
 
 .manual-search-modal {
   position: relative;

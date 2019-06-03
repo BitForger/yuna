@@ -3,16 +3,18 @@ import Vue from 'vue'
 import Vuex from 'vuex'
 
 import {
+  ANILIST_LOGIN,
+  DOWNLOAD_UPDATE,
   UPDATE_AVAILABLE,
   UPDATE_DOWNLOADED,
   UPDATE_ERROR,
-  DOWNLOAD_UPDATE,
 } from '@/messages'
 
 import { app, AppState, sendToast, setIsUpdateAvailable } from './app'
 import { auth, AuthState } from './auth'
 import { settings, SettingsState } from './settings'
 import { user, UserState } from './user'
+import { Anilist } from '@/lib/anilist'
 
 Vue.use(Vuex)
 
@@ -52,20 +54,33 @@ ipcRenderer.on(UPDATE_DOWNLOADED, () => {
   })
 })
 
-ipcRenderer.on(UPDATE_ERROR, (_e: any, version: string) => {
+ipcRenderer.on(UPDATE_ERROR, (_e: any, version?: string) => {
   setIsUpdateAvailable(store, false)
+
+  let url = 'https://github.com/BeeeQueue/yuna/releases'
+
+  if (version) {
+    url += `/tag/v${version}`
+  }
 
   sendToast(store, {
     type: 'error',
     title: 'An error occurred downloading update.',
     message: 'Click here to download it manually from GitHub.',
     click: () => {
-      shell.openExternal(
-        `https://github.com/BeeeQueue/yuna/releases/tag/v${version}`,
-      )
+      shell.openExternal(url)
     },
     timeout: 30 * 1000,
   })
+})
+
+interface Parameters {
+  token: string
+  expires: number
+}
+
+ipcRenderer.on(ANILIST_LOGIN, async (_: any, params: Parameters) => {
+  await Anilist.updateUserData(store, params)
 })
 
 export interface RootState {

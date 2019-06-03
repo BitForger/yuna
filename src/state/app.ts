@@ -1,5 +1,5 @@
 import { activeWindow } from 'electron-util'
-import { change, reject } from 'rambdax'
+import change from 'lodash.set'
 import {
   NotificationFunctionOptions,
   NotificationTypes,
@@ -72,6 +72,10 @@ export interface ManualSearchOptions {
   selectedEpisodes: EpisodeListEpisodes[]
 }
 
+export interface LocalSourceOptions {
+  anilistId: number
+}
+
 export interface AppState {
   isUpdateAvailable: boolean
   toasts: Toast[]
@@ -83,8 +87,13 @@ export interface AppState {
       anime: EditModalAnime | null
     }
     manualSearch: ModalBase & ManualSearchOptions
+    localSource: ModalBase & {
+      options: LocalSourceOptions | null
+    }
   }
 }
+
+export type ModalName = keyof AppState['modals']
 
 type AppContext = ActionContext<AppState, RootState>
 
@@ -109,6 +118,10 @@ const initialState: AppState = {
       anilistId: null,
       selectedEpisodes: [],
     },
+    localSource: {
+      ...initialModalBase,
+      options: null,
+    },
   },
 }
 
@@ -130,17 +143,18 @@ export const app = {
       return state.player
     },
 
-    getPlaylistAnimeId(state: AppState) {
-      if (!state.player) return null
+    getModalStates(
+      state: AppState,
+    ): { [key in keyof AppState['modals']]: boolean } {
+      const entries = Object.entries(state.modals).map(
+        ([key, obj]) => [key, obj.visible] as [string, boolean],
+      )
 
-      return state.player.id
-    },
+      return entries.reduce(
+        (obj, [key, value]) => {
+          obj[key] = value
 
-    getModalStates(state: AppState) {
-      return Object.keys(state.modals).reduce(
-        (map, key) => {
-          map[key] = (state.modals as any)[key].visible
-          return map
+          return obj
         },
         {} as any,
       )
@@ -152,6 +166,10 @@ export const app = {
 
     getManualSearchOptions(state: AppState) {
       return state.modals.manualSearch
+    },
+
+    getLocalSourceAnime(state: AppState) {
+      return state.modals.localSource.options
     },
 
     getIsFullscreen(state: AppState) {
@@ -182,7 +200,9 @@ export const app = {
     },
 
     removeToast(state: AppState, id: string) {
-      state.toasts = reject(propEq('id', id), state.toasts)
+      state.toasts = state.toasts.filter(
+        toast => !propEq<typeof toast, 'id'>('id', id)(toast),
+      )
     },
 
     setPlaylist(state: AppState, options: PlayerData | null) {
@@ -229,6 +249,13 @@ export const app = {
       state.modals.manualSearch = {
         ...state.modals.manualSearch,
         ...options,
+      }
+    },
+
+    setLocalSourceAnime(state: AppState, animeId: number) {
+      state.modals.localSource.visible = true
+      state.modals.localSource.options = {
+        anilistId: animeId,
       }
     },
 
@@ -308,11 +335,6 @@ export const app = {
   },
 
   actions: {
-    notifyDownloadDone() {
-      // eslint-disable-next-line no-unused-expression
-      new Notification('New version downloaded, restart to start using it!')
-    },
-
     sendToast(context: AppContext, options: ToastOptions) {
       const realOptions = Object.assign(
         {},
@@ -339,14 +361,6 @@ export const app = {
         type: 'error',
         title: 'An error occurred!',
         message: error,
-      })
-    },
-
-    sendNotImplementedToast(context: AppContext) {
-      sendToast(context, {
-        type: 'error',
-        title: 'Not implemented',
-        message: 'This has not been added yet!',
       })
     },
 
@@ -407,10 +421,10 @@ const { read, commit, dispatch } = getStoreAccessors<AppState, RootState>('app')
 export const getIsUpdateAvailable = read(app.getters.getIsUpdateAvailable)
 export const getToasts = read(app.getters.getToasts)
 export const getPlayerData = read(app.getters.getPlayerData)
-export const getPlaylistAnimeId = read(app.getters.getPlaylistAnimeId)
 export const getModalStates = read(app.getters.getModalStates)
 export const getEditingAnime = read(app.getters.getEditingAnime)
 export const getManualSearchOptions = read(app.getters.getManualSearchOptions)
+export const getLocalSourceOptions = read(app.getters.getLocalSourceAnime)
 export const getIsFullscreen = read(app.getters.getIsFullscreen)
 export const getSelectedEpisodes = read(app.getters.getSelectedEpisodes)
 
@@ -420,6 +434,7 @@ export const setEditingAnimeValue = commit(app.mutations.setEditingAnimeValue)
 export const setManualSearchOptions = commit(
   app.mutations.setManualSearchOptions,
 )
+export const setLocalSourceAnime = commit(app.mutations.setLocalSourceAnime)
 export const removeToast = commit(app.mutations.removeToast)
 const setPlaylist = commit(app.mutations.setPlaylist)
 const _setCurrentEpisode = commit(app.mutations.setCurrentEpisode)
@@ -437,10 +452,6 @@ export const unselectCrunchyrollEpisodes = commit(
 export const toggleFullscreen = dispatch(app.actions.toggleFullscreen)
 export const sendToast = dispatch(app.actions.sendToast)
 export const sendErrorToast = dispatch(app.actions.sendErrorToast)
-export const sendNotImplementedToast = dispatch(
-  app.actions.sendNotImplementedToast,
-)
-export const notifyDownloadDone = dispatch(app.actions.notifyDownloadDone)
 export const initEditModal = dispatch(app.actions.initEditModal)
 export const initManualSearch = dispatch(app.actions.initManualSearch)
 export const setCurrentEpisode = dispatch(app.actions.setCurrentEpisode)

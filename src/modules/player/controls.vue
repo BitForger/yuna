@@ -21,7 +21,7 @@
 
     <div class="toolbar">
       <progress-bar
-        :duration="episode.duration"
+        :duration="duration"
         :progressPercentage="progressPercentage"
         :loadedPercentage="loadedPercentage"
         :onSetTime="onSetTime"
@@ -166,12 +166,18 @@
         <label v-if="levels != null">
           Quality:
           <select @input="handleChangeQuality" :value="quality">
-            <option
-              v-for="(level, quality) in levels"
-              :key="level"
-              :value="level"
-              >{{ quality }}p</option
-            >
+            <option v-for="(_, q) in levels" :key="q" :value="q">
+              {{ q }}p
+            </option>
+          </select>
+        </label>
+
+        <label v-if="subtitles.length > 0">
+          Subtitles:
+          <select @input="handleChangeSubtitles" :value="subtitlesIndex">
+            <option v-for="(path, q) in subtitles" :key="q" :value="q">
+              {{ formatSubtitlePath(path) }}
+            </option>
           </select>
         </label>
 
@@ -248,12 +254,15 @@ export default class Controls extends Vue {
   @Required(Boolean) public muted!: boolean
   @Required(Boolean) public isPlayerMaximized!: boolean
   @Required(Number) public volume!: number
+  @Required(Number) public duration!: number
   @Required(Number) public progressInSeconds!: number
   @Required(Number) public progressPercentage!: number
   @Required(Number) public loadedPercentage!: number
   @Required(Number) public speed!: number
-  @Required(Number) public quality!: number
-  @Required(Object) public levels!: Levels
+  @Required(String) public quality!: string
+  @Prop(Object) public levels!: Levels | null
+  @Required(Array) public subtitles!: string[]
+  @Required(Number) public subtitlesIndex!: number
   @Required(Function) public play!: () => void
   @Required(Function) public pause!: () => void
   @Required(Function) public onSetTime!: (e: Event) => void
@@ -261,6 +270,9 @@ export default class Controls extends Vue {
   @Required(Function) public onToggleMute!: (e: Event) => void
   @Required(Function) public onChangeSpeed!: (e: Event) => void
   @Required(Function) public onChangeQuality!: (quality: string) => void
+  @Required(Function) public onChangeSubtitles!: (
+    subtitlesIndex: number,
+  ) => void
   @Required(Function) public setProgress!: (progress: number) => any
   @Required(Function) public closePlayer!: (progress: number) => any
 
@@ -280,9 +292,9 @@ export default class Controls extends Vue {
 
   public get timeString() {
     const current = secondsToTimeString(
-      Math.min(this.progressInSeconds, this.episode.duration),
+      Math.min(this.progressInSeconds, this.duration),
     )
-    const duration = secondsToTimeString(this.episode.duration)
+    const duration = secondsToTimeString(this.duration)
 
     return `${current} / ${duration}`
   }
@@ -335,8 +347,18 @@ export default class Controls extends Vue {
 
   public handleChangeQuality(e: Event) {
     const element = e.target as HTMLSelectElement
-    const qualities = Object.keys(this.levels!)
-    this.onChangeQuality(qualities[Number(element.value)])
+    this.onChangeQuality(element.value)
+  }
+
+  public handleChangeSubtitles(e: Event) {
+    const element = e.target as HTMLSelectElement
+    this.onChangeSubtitles(Number(element.value))
+  }
+
+  public formatSubtitlePath(path: string) {
+    const match = path.match(/.*[\\/]\d+-\d+-(.*)\.vtt/)
+
+    return match ? match[1].replace(/_/g, ' ').replace(/-/g, '/') : path
   }
 
   public goVisible() {
@@ -543,6 +565,7 @@ $buttonSize: 50px;
     font-weight: 400;
     font-size: 1.5em;
     cursor: default;
+    font-variant-numeric: tabular-nums;
   }
 
   & > .button-collapser {

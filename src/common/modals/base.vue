@@ -1,20 +1,31 @@
 <template>
-  <transition>
-    <div v-if="visible" class="modal">
+  <portal to="modal">
+    <div v-if="visible" :key="name" class="modal">
       <div class="cover" @click="toggleVisible" />
 
       <slot />
     </div>
-  </transition>
+  </portal>
 </template>
 
 <script lang="ts">
-import { Component, Vue, Prop } from 'vue-property-decorator'
+import { Component, Vue } from 'vue-property-decorator'
+
+import { Required } from '@/decorators'
+import { RootState } from '@/state/store'
+import { getModalStates, toggleModal } from '@/state/app'
 
 @Component
-export default class Modal extends Vue {
-  @Prop(Boolean) public visible!: boolean | null
-  @Prop(Function) public toggleVisible!: () => any
+export default class ModalBase extends Vue {
+  @Required(String) public name!: keyof RootState['app']['modals']
+
+  public get visible(): boolean {
+    return getModalStates(this.$store)[this.name!]
+  }
+
+  public toggleVisible() {
+    toggleModal(this.$store, this.name!)
+  }
 }
 </script>
 

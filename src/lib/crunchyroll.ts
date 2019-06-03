@@ -603,9 +603,9 @@ export class Crunchyroll {
       .get(`https://${CR_UNBLOCKER_URL}/start_session`)
       .ok(T)
       .query({
-        auth: userStore.get('crunchyroll.refreshToken', null),
+        auth: auth || userStore.get('crunchyroll.refreshToken', null),
         version: '1.1',
-        user_id: auth || userStore.get('crunchyroll.user.id', null),
+        user_id: userStore.get('crunchyroll.user.id', null),
       })) as CrunchyrollResponse<SessionResponse>
 
     if (responseIsError(response)) {
@@ -682,12 +682,13 @@ const mediaToEpisode = (id: number) => (
   id: media_id,
   animeId: id,
   title: name,
+  progress: playhead || null,
   index,
   episodeNumber: episode_number as any,
   duration,
-  progress: playhead || null,
-  thumbnail: screenshot_image.full_url,
   url,
+  subtitles: null,
+  thumbnail: screenshot_image.full_url,
 })
 
 const notNumberRegex = /[^\d.]/g

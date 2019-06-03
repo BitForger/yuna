@@ -32,7 +32,10 @@
       </transition>
     </div>
 
-    <div class="sidebar" :class="{ small: isPlayerOpen }">
+    <div
+      class="sidebar"
+      :class="{ small: isPlayerOpen, external: isExternalPlayer }"
+    >
       <span class="fill" />
 
       <c-button
@@ -68,6 +71,8 @@
         :click="clearQueue"
       />
     </div>
+
+    <manual-search-modal />
   </div>
 </template>
 
@@ -78,12 +83,13 @@ import { remote, shell } from 'electron'
 import { activeWindow, api } from 'electron-util'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
-import { complement, indexBy } from 'rambdax'
+import indexBy from 'lodash.keyby'
 import { oc } from 'ts-optchain'
 import { mdiClockOutline, mdiPause, mdiPlay, mdiPlaylistRemove } from '@mdi/js'
 
 import CButton from '@/common/components/button.vue'
 import QueueItem from './components/queue-item.vue'
+import ManualSearchModal from './modals/manual-search/manual-search-modal.vue'
 
 import { pausedQuery, planningQuery, watchingQuery } from './queries'
 import QUEUE_QUERY from './queue.graphql'
@@ -106,10 +112,11 @@ import {
   toggleQueueItemOpen,
 } from '@/state/user'
 import { QueueItem as IQueueItem } from '@/lib/user'
-import { isNotNil, pick, prop, propEq, sortNumber } from '@/utils'
+import { complement, isNotNil, pick, prop, propEq, sortNumber } from '@/utils'
 
 @Component({
   components: {
+    ManualSearchModal,
     QueueItem,
     CButton,
     Container,
@@ -128,9 +135,8 @@ export default class Queue extends Vue {
       }
     },
     update(data) {
-      const items = indexBy(
-        anime => anime.id.toString(),
-        oc(data).queue.anime([] as QueueAnime[]),
+      const items = indexBy(oc(data).queue.anime([] as QueueAnime[]), anime =>
+        anime.id.toString(),
       )
 
       return this.queue.map(item => items[item.id])
@@ -158,6 +164,10 @@ export default class Queue extends Vue {
 
   public get isPlayerOpen() {
     return !!getPlayerData(this.$store)
+  }
+
+  public get isExternalPlayer() {
+    return oc(getPlayerData(this.$store)).provider() === Provider.Local
   }
 
   public get queue() {
@@ -368,11 +378,13 @@ export default class Queue extends Vue {
 @import '../../colors';
 
 .queue {
-  position: relative;
   display: flex;
 
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  top: 80px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(0, 0, 0, 0.85);
 
   .queue-container {
@@ -427,6 +439,10 @@ export default class Queue extends Vue {
 
     &.small {
       margin-bottom: 183px;
+    }
+
+    &.external {
+      margin-bottom: 50px !important;
     }
 
     & > .button {

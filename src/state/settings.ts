@@ -33,6 +33,10 @@ interface KeybindingSettings {
   [key: string]: KeybindingAction[]
 }
 
+interface ExternalPlayerPaths {
+  vlc: string | null
+}
+
 interface SpoilerSettings {
   anime: {
     description: boolean
@@ -52,6 +56,7 @@ export enum SetupStep {
   CONNECT,
   SPOILERS,
   DISCORD,
+  LOCAL_FILES,
 }
 
 export const _setupSteps = Object.keys(SetupStep)
@@ -79,6 +84,8 @@ export interface SettingsState {
   discord: DiscordSettings
   keybindings: KeybindingSettings
   spoilers: SpoilerSettings
+  externalPlayers: ExternalPlayerPaths
+  localFilesFolder: string | null
   setup: SetupSettings
   window: Electron.Rectangle
 }
@@ -143,6 +150,8 @@ const initialState: SettingsState = {
   discord: SettingsStore.get('discord', { ...defaultDiscord }),
   keybindings: SettingsStore.get('keybindings', { ...defaultBindings }),
   spoilers: SettingsStore.get('spoilers', { ...defaultSpoilers }),
+  externalPlayers: SettingsStore.get('externalPlayers', { vlc: null }),
+  localFilesFolder: SettingsStore.get('localFilesFolder', null),
   window: SettingsStore.get('window', {}),
   setup: SettingsStore.get('setup', { finishedSteps: [...defaultSteps] }),
 }
@@ -214,8 +223,12 @@ export const settings = {
       return state.spoilers
     },
 
+    getLocalFilesFolder(state: SettingsState) {
+      return state.localFilesFolder
+    },
+
     getHasFinishedSetup(state: SettingsState) {
-      return state.setup.finishedSteps.length === _setupSteps.length
+      return state.setup.finishedSteps.length >= _setupSteps.length
     },
 
     getNextUnfinishedStep(state: SettingsState) {
@@ -317,6 +330,18 @@ export const settings = {
       SettingsStore.set(['spoilers', ...payload.path].join('.'), payload.value)
     },
 
+    setLocalFilesFolder(state: SettingsState, path: string | null) {
+      state.localFilesFolder = path
+
+      SettingsStore.set('localFilesFolder', path)
+    },
+
+    setVLCPath(state: SettingsState, path: string | null) {
+      state.externalPlayers.vlc = path
+
+      SettingsStore.set('externalPlayers', state.externalPlayers)
+    },
+
     setDiscordRichPresence(state: SettingsState, enabled: boolean) {
       if (enabled) {
         ipcRenderer.send(DISCORD_ENABLE_RICH_PRESENCE)
@@ -341,7 +366,7 @@ export const settings = {
         return console.error('Tried to set unknown setting: ' + options.setting)
       }
 
-      state[options.setting] = options.value
+      ;(state[options.setting] as any) = options.value
 
       SettingsStore.set(options.setting, options.value)
     },
@@ -354,6 +379,15 @@ export const settings = {
 
         SettingsStore.set('setup.finishedSteps', steps)
       }
+    },
+
+    removeFinishedStep(state: SettingsState, step: SetupStep) {
+      const index = state.setup.finishedSteps.indexOf(step)
+
+      if (index === -1) return
+
+      state.setup.finishedSteps.splice(index, 1)
+      SettingsStore.set('setup.finishedSteps', state.setup.finishedSteps)
     },
   },
 
@@ -381,6 +415,7 @@ export const getKeybindings = read(settings.getters.getKeybindings)
 export const getKeysForAction = read(settings.getters.getKeysForAction)
 export const getKeydownHandler = read(settings.getters.getKeydownHandler)
 export const getSpoilerSettings = read(settings.getters.getSpoilerSettings)
+export const getLocalFilesFolder = read(settings.getters.getLocalFilesFolder)
 export const getHasFinishedSetup = read(settings.getters.getHasFinishedSetup)
 export const getNextUnfinishedStep = read(
   settings.getters.getNextUnfinishedStep,
@@ -392,11 +427,16 @@ export const addKeybinding = commit(settings.mutations.addKeybinding)
 export const removeKeybinding = commit(settings.mutations.removeKeybinding)
 export const resetKeybindings = commit(settings.mutations.resetKeybindings)
 export const setSpoiler = commit(settings.mutations.setSpoiler)
+export const setLocalFilesFolder = commit(
+  settings.mutations.setLocalFilesFolder,
+)
+export const setVLCPath = commit(settings.mutations.setVLCPath)
 export const setSetting = commit(settings.mutations.setSetting)
 export const setDiscordRichPresence = commit(
   settings.mutations.setDiscordRichPresence,
 )
 export const addFinishedStep = commit(settings.mutations.addFinishedStep)
+export const removeFinishedStep = commit(settings.mutations.removeFinishedStep)
 
 export const setCrunchyrollLocale = dispatch(
   settings.actions.setCrunchyrollLocale,

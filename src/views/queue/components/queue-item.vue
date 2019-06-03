@@ -149,6 +149,7 @@ import { removeFromQueueById, toggleQueueItemOpen } from '@/state/user'
 import { sendErrorToast } from '@/state/app'
 import { QueueItem as IQueueItem } from '@/lib/user'
 import { capitalize, delay, getIconForStatus, isNil } from '@/utils'
+import { CrunchyrollProviders } from '@/types'
 
 @Component({
   components: {
@@ -190,8 +191,13 @@ export default class QueueItem extends Vue {
       this.episodesFetchingError =
         'Something went wrong fetching the episodes. :('
     },
-    async result(data) {
-      if (!isNil(data.episodes)) return
+    async result() {
+      if (
+        !isNil(this.episodes) ||
+        !CrunchyrollProviders.includes(this.item.provider)
+      ) {
+        return
+      }
 
       sendErrorToast(
         this.$store,

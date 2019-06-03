@@ -2,9 +2,9 @@ import {
   app,
   BrowserWindow,
   ipcMain,
-  protocol,
   Menu,
   MenuItemConstructorOptions,
+  protocol,
 } from 'electron'
 import electronDebug, { openDevTools } from 'electron-debug'
 import Store from 'electron-store'
@@ -18,7 +18,7 @@ import {
 } from 'vue-cli-plugin-electron-builder/lib'
 
 import { destroyDiscord, registerDiscord } from './lib/discord'
-import { OPEN_DEVTOOLS } from './messages'
+import { ANILIST_LOGIN, LOGGED_INTO_ANILIST, OPEN_DEVTOOLS } from './messages'
 import { initAutoUpdater } from './updater'
 import { version } from '../package.json'
 
@@ -37,15 +37,28 @@ init({
 })
 
 // global reference to mainWindow (necessary to prevent window from being garbage collected)
-let mainWindow: any
+let mainWindow: BrowserWindow | null = null
 
 // Standard scheme must be registered before the app is ready
-protocol.registerStandardSchemes(['app'], { secure: true })
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'app',
+    privileges: {
+      secure: true,
+    },
+  },
+  {
+    scheme: 'yuna',
+    privileges: {
+      supportFetchAPI: true,
+    },
+  },
+])
 
 // Register extra stuff
 electronDebug({})
 
-function createMainWindow() {
+const createMainWindow = () => {
   const settingsStore = new Store<any>({ name: 'settings' })
 
   const position = settingsStore.get('window', {})
@@ -62,6 +75,7 @@ function createMainWindow() {
     webPreferences: {
       webSecurity: false,
       allowRunningInsecureContent: false,
+      nodeIntegration: true,
     },
   })
 
@@ -104,7 +118,7 @@ function createMainWindow() {
           type: 'normal',
           label: 'Select All',
           accelerator: 'CmdOrCtrl+A',
-          role: 'selectAll',
+          role: 'selectall',
         },
       ],
     },
@@ -154,7 +168,7 @@ function createMainWindow() {
   })
 
   window.on('close', () => {
-    settingsStore.set('window', mainWindow.getBounds())
+    settingsStore.set('window', mainWindow!.getBounds())
   })
 
   window.on('closed', () => {
@@ -173,6 +187,8 @@ function createMainWindow() {
 
 app.commandLine.appendSwitch('force-color-profile', 'srgb')
 
+app.setAppUserModelId(process.execPath)
+
 // quit application when all windows are closed
 app.on('window-all-closed', () => {
   // on macOS it is common for applications to stay open until the user explicitly quits
@@ -187,7 +203,7 @@ app.on('activate', () => {
   // on macOS it is common to re-create a window even after all windows have been closed
   if (mainWindow === null) {
     mainWindow = createMainWindow()
-    mainWindow.once('did-finish-load', () => mainWindow.show)
+    mainWindow.once('did-finish-load' as any, () => mainWindow!.show)
   }
 })
 
@@ -200,6 +216,22 @@ app.on('ready', async () => {
     await installVueDevtools()
   }
 
+  protocol.registerStringProtocol('yuna', async (req, cb) => {
+    const matches = req.url!.match(
+      /access_token=(.*)&.*&expires_in=(\d+)/,
+    ) as RegExpMatchArray
+
+    if (!matches || !matches[1]) {
+      return cb('Failed to get token')
+    }
+
+    mainWindow!.webContents.send(ANILIST_LOGIN, {
+      token: matches[1],
+      expires: Date.now() + Number(matches[2]),
+    })
+    cb(LOGGED_INTO_ANILIST)
+  })
+
   mainWindow = createMainWindow()
-  mainWindow.once('did-finish-load', () => mainWindow.show)
+  mainWindow.once('did-finish-load' as any, () => mainWindow!.show)
 })
